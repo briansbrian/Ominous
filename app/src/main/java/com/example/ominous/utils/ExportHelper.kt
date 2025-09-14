@@ -179,4 +179,48 @@ class ExportHelper(private val context: Context) {
         file.writeText(content)
         return file
     }
+    
+    fun createZipExport(
+        notes: List<Note>,
+        screenshots: Map<String, List<Screenshot>>,
+        options: ExportOptions
+    ): File {
+        val exportsDir = File(context.getExternalFilesDir(null), "exports")
+        if (!exportsDir.exists()) {
+            exportsDir.mkdirs()
+        }
+        
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val zipFile = File(exportsDir, "ominous_export_$timestamp.zip")
+        
+        java.util.zip.ZipOutputStream(zipFile.outputStream()).use { zipOut ->
+            // Add main export file
+            val mainContent = exportNotes(notes, screenshots, options)
+            val extension = when (options.format) {
+                ExportFormat.MARKDOWN -> "md"
+                ExportFormat.HTML -> "html"
+                ExportFormat.PLAIN_TEXT -> "txt"
+            }
+            
+            zipOut.putNextEntry(java.util.zip.ZipEntry("notes.$extension"))
+            zipOut.write(mainContent.toByteArray())
+            zipOut.closeEntry()
+            
+            // Add screenshot files if requested
+            if (options.includeImages) {
+                screenshots.values.flatten().forEach { screenshot ->
+                    val screenshotFile = File(screenshot.filePath)
+                    if (screenshotFile.exists()) {
+                        zipOut.putNextEntry(java.util.zip.ZipEntry("screenshots/${screenshotFile.name}"))
+                        screenshotFile.inputStream().use { input ->
+                            input.copyTo(zipOut)
+                        }
+                        zipOut.closeEntry()
+                    }
+                }
+            }
+        }
+        
+        return zipFile
+    }
 }

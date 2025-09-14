@@ -116,10 +116,10 @@
 - [ ] Implement search and filtering
 
 ### 6.2 Main Screen Components
-- [ ] Create `presentation/main/components/NoteCard.kt`
-- [ ] Create `presentation/main/components/PinnedNoteCard.kt`
-- [ ] Create `presentation/main/components/ExportDialog.kt`
-- [ ] Implement note preview with screenshot thumbnails
+- [x] Create `presentation/main/components/NoteCard.kt`
+- [x] Create `presentation/main/components/PinnedNoteCard.kt`
+- [x] Create `presentation/main/components/ExportDialog.kt`
+- [x] Implement note preview with screenshot thumbnails
 
 ### 6.3 MainActivity
 - [x] Update `MainActivity.kt` with Compose integration
@@ -131,15 +131,15 @@
 
 ### 7.1 Floating Widget Core
 - [x] Create `presentation/floating/FloatingWidgetViewModel.kt`
-- [ ] Create `presentation/floating/FloatingWidgetCompose.kt`
-- [ ] Implement floating window Compose integration
-- [ ] Handle window state management
+- [x] Create `presentation/floating/FloatingWidgetCompose.kt`
+- [x] Implement floating window Compose integration
+- [x] Handle window state management
 
 ### 7.2 Floating Widget Components
-- [ ] Create `presentation/floating/components/FloatingIcon.kt` (minimized state)
-- [ ] Create `presentation/floating/components/ExpandedWidget.kt`
-- [ ] Create `presentation/floating/components/ScreenshotThumbnail.kt`
-- [ ] Implement toolbar with screenshot and note buttons
+- [x] Create `presentation/floating/components/FloatingIcon.kt` (minimized state)
+- [x] Create `presentation/floating/components/ExpandedWidget.kt`
+- [x] Create `presentation/floating/components/ScreenshotThumbnail.kt`
+- [x] Implement toolbar with screenshot and note buttons
 
 ## Phase 8: Utility Classes & Helpers
 
@@ -150,11 +150,11 @@
 - [x] Create `utils/Constants.kt` for app constants
 
 ### 8.2 Export System
-- [ ] Implement markdown export
-- [ ] Implement HTML export
-- [ ] Implement plain text export
-- [ ] Add ZIP creation for multi-file exports
-- [ ] Handle image embedding/referencing
+- [x] Implement markdown export
+- [x] Implement HTML export
+- [x] Implement plain text export
+- [x] Add ZIP creation for multi-file exports
+- [x] Handle image embedding/referencing
 
 ## Phase 9: Dependency Injection Setup
 
