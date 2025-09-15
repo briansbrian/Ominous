@@ -1,5 +1,8 @@
 package com.example.ominous.presentation.main
 
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -13,25 +16,30 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ominous.data.database.entities.Note
+import com.example.ominous.data.services.FloatingWidgetService
 import com.example.ominous.domain.model.ExportFormat
 import com.example.ominous.presentation.main.components.ExportDialog
 import com.example.ominous.presentation.main.components.NoteCard
 import com.example.ominous.presentation.main.components.PinnedNoteCard
+import com.example.ominous.utils.PermissionHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     var showCreateDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showSearchBar by remember { mutableStateOf(false) }
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
     
     Scaffold(
         topBar = {
@@ -71,9 +79,21 @@ fun MainScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showCreateDialog = true }
+                onClick = { 
+                    // Check overlay permission before launching floating widget
+                    if (PermissionHelper.hasOverlayPermission(context)) {
+                        // Permission granted, show floating overlay
+                        val intent = Intent(context, FloatingWidgetService::class.java).apply {
+                            action = FloatingWidgetService.ACTION_SHOW_FLOATING_WIDGET
+                        }
+                        context.startService(intent)
+                    } else {
+                        // Permission not granted, show explanation dialog
+                        showOverlayPermissionDialog = true
+                    }
+                }
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Note")
+                Icon(Icons.Default.Add, contentDescription = "Launch Floating Widget")
             }
         }
     ) { paddingValues ->
@@ -175,6 +195,16 @@ fun MainScreen(
             onDismiss = { showExportDialog = false }
         )
     }
+    
+    if (showOverlayPermissionDialog) {
+        OverlayPermissionDialog(
+            onGrantPermission = {
+                showOverlayPermissionDialog = false
+                PermissionHelper.requestOverlayPermission(context)
+            },
+            onDismiss = { showOverlayPermissionDialog = false }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -232,6 +262,34 @@ fun CreateNoteDialog(
                 }
             ) {
                 Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun OverlayPermissionDialog(
+    onGrantPermission: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Overlay Permission Required") },
+        text = {
+            Text(
+                "To use the floating note widget, Ominous needs permission to display over other apps. " +
+                "This allows you to take notes and screenshots while using any application.\n\n" +
+                "You'll be taken to Android settings to grant this permission."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onGrantPermission) {
+                Text("Grant Permission")
             }
         },
         dismissButton = {

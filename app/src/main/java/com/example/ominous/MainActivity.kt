@@ -60,6 +60,22 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Check permissions again when returning from settings
         checkAndStartServices()
+        
+        // Check if user just granted overlay permission and show widget if requested
+        val intent = intent
+        if (intent?.getBooleanExtra("show_widget_after_permission", false) == true) {
+            intent.removeExtra("show_widget_after_permission")
+            showFloatingWidgetIfPermissionGranted()
+        }
+    }
+    
+    private fun showFloatingWidgetIfPermissionGranted() {
+        if (PermissionHelper.hasOverlayPermission(this)) {
+            val intent = Intent(this, FloatingWidgetService::class.java).apply {
+                action = FloatingWidgetService.ACTION_SHOW_FLOATING_WIDGET
+            }
+            startService(intent)
+        }
     }
     
     private fun createNotificationChannel() {
@@ -129,6 +145,7 @@ class MainActivity : ComponentActivity() {
     
     private fun startFloatingWidgetService() {
         val intent = Intent(this, FloatingWidgetService::class.java)
+        // Start service without action to initialize but not show widget
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
