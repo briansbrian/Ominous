@@ -74,7 +74,13 @@ class FloatingWidgetService : Service() {
             addAction("com.example.ominous.SCREENSHOT_STARTING")
             addAction("com.example.ominous.SCREENSHOT_COMPLETED")
         }
-        registerReceiver(screenshotReceiver, filter)
+        
+        // Register receiver with RECEIVER_NOT_EXPORTED for Android 14+ compatibility
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenshotReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenshotReceiver, filter)
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
