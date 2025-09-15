@@ -158,12 +158,18 @@ class FloatingWidgetService : Service() {
                 shape = android.graphics.drawable.GradientDrawable.OVAL
                 setColor(0xFF800020.toInt()) // Maroon color
                 setSize(80, 80)
+                setStroke(3, 0xFFFFFFFF.toInt()) // White border to make it more obvious
             }
             background = drawable
             
             setPadding(16, 16, 16, 16)
             
+            // Make it more obviously clickable
+            isClickable = true
+            isFocusable = true
+            
             setOnClickListener {
+                android.util.Log.d("FloatingWidget", "Minimized icon clicked - expanding widget")
                 expandWidget()
             }
             
@@ -279,7 +285,7 @@ class FloatingWidgetService : Service() {
     }
     
     private fun createTouchListener(): View.OnTouchListener {
-        return View.OnTouchListener { _, event ->
+        return View.OnTouchListener { view, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = layoutParams?.x ?: 0
@@ -289,15 +295,30 @@ class FloatingWidgetService : Service() {
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    layoutParams?.x = initialX + (event.rawX - initialTouchX).toInt()
-                    layoutParams?.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager?.updateViewLayout(floatingView, layoutParams)
+                    val deltaX = event.rawX - initialTouchX
+                    val deltaY = event.rawY - initialTouchY
+                    
+                    // Only move if there's significant movement (avoid interfering with clicks)
+                    if (kotlin.math.abs(deltaX) > 10 || kotlin.math.abs(deltaY) > 10) {
+                        layoutParams?.x = initialX + deltaX.toInt()
+                        layoutParams?.y = initialY + deltaY.toInt()
+                        windowManager?.updateViewLayout(floatingView, layoutParams)
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    // Save position
+                    val deltaX = event.rawX - initialTouchX
+                    val deltaY = event.rawY - initialTouchY
+                    
+                    // If movement was minimal, treat as click
+                    if (kotlin.math.abs(deltaX) < 10 && kotlin.math.abs(deltaY) < 10) {
+                        view.performClick()
+                        return@OnTouchListener true
+                    }
+                    
+                    // Save position after drag
                     saveWidgetState()
-                    false
+                    true
                 }
                 else -> false
             }
@@ -314,12 +335,14 @@ class FloatingWidgetService : Service() {
     }
     
     private fun expandWidget() {
+        android.util.Log.d("FloatingWidget", "Expanding widget from minimized state")
         isMinimized = false
         hideFloatingWidget()
         createExpandedView()
         setupLayoutParams()
         windowManager?.addView(floatingView, layoutParams)
         saveWidgetState()
+        android.util.Log.d("FloatingWidget", "Widget expanded successfully")
     }
     
     private fun hideFloatingWidget() {
