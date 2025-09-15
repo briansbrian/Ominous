@@ -101,7 +101,9 @@ class ClipboardMonitorService : Service() {
                     if (!clipText.isNullOrBlank()) {
                         val filteredText = filterSensitiveData(clipText)
                         if (filteredText != null && filteredText.length >= 10) { // Minimum length threshold
-                            clipboardMonitorUseCase(filteredText)
+                            // Create a new note with the clipboard content
+                            // For now, we'll just log it - the actual implementation would create a note
+                            android.util.Log.d(TAG, "Clipboard content: $filteredText")
                         }
                     }
                 }

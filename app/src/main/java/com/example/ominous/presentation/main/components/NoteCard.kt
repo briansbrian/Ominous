@@ -53,7 +53,7 @@ fun NoteCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Text(
-                    text = note.title.ifBlank { "Untitled" },
+                    text = note.content.take(30).ifBlank { "Untitled" },
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,

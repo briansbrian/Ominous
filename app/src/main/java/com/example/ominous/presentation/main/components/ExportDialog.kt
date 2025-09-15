@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.GetApp
 import androidx.compose.material.icons.filled.Web
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,7 +17,7 @@ import com.example.ominous.domain.model.ExportFormat
 
 @Composable
 fun ExportDialog(
-    selectedNoteIds: List<Long>,
+    selectedNoteIds: List<String>,
     onExport: (ExportFormat, Boolean) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -114,7 +114,7 @@ fun ExportDialog(
                 onClick = { onExport(selectedFormat, includeScreenshots) }
             ) {
                 Icon(
-                    imageVector = Icons.Default.FileDownload,
+                    imageVector = Icons.Default.GetApp,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )

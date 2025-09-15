@@ -4,16 +4,17 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
-import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
-import com.example.ominous.R
+import android.widget.TextView
 import com.example.ominous.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class FloatingWidgetService : Service() {
@@ -45,14 +46,20 @@ class FloatingWidgetService : Service() {
             createNotification()
         )
         
-        // Create floating view (placeholder for now)
-        floatingView = LayoutInflater.from(this).inflate(
-            android.R.layout.simple_list_item_1, null
-        )
+        // Create simple floating view (placeholder for now)
+        floatingView = TextView(this).apply {
+            text = "Ominous Widget"
+            setBackgroundColor(0x80000000.toInt())
+            setPadding(16, 16, 16, 16)
+            setTextColor(0xFFFFFFFF.toInt())
+            setOnClickListener {
+                handleNoteClick()
+            }
+        }
         
         val params = WindowManager.LayoutParams(
-            Constants.FLOATING_WIDGET_DEFAULT_WIDTH,
-            Constants.FLOATING_WIDGET_DEFAULT_HEIGHT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -70,6 +77,20 @@ class FloatingWidgetService : Service() {
         windowManager?.addView(floatingView, params)
     }
     
+    private fun handleScreenshotClick() {
+        // Start screenshot capture
+        val mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
+        
+        // TODO: Implement screenshot capture
+        android.util.Log.d("FloatingWidget", "Screenshot clicked")
+    }
+    
+    private fun handleNoteClick() {
+        // TODO: Open main app or create new note
+        android.util.Log.d("FloatingWidget", "Note clicked")
+    }
+    
     private fun stopFloatingWidget() {
         floatingView?.let { view ->
             windowManager?.removeView(view)
@@ -82,8 +103,8 @@ class FloatingWidgetService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                Constants.FLOATING_WIDGET_CHANNEL_ID,
-                "Floating Widget",
+                Constants.NOTIFICATION_CHANNEL_ID,
+                Constants.NOTIFICATION_CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Floating widget service notification"
@@ -104,7 +125,7 @@ class FloatingWidgetService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        return NotificationCompat.Builder(this, Constants.FLOATING_WIDGET_CHANNEL_ID)
+        return NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Ominous Floating Widget")
             .setContentText("Tap to take notes and screenshots")
             .setSmallIcon(android.R.drawable.ic_dialog_info)

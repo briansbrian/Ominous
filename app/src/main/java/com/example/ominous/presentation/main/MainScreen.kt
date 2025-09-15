@@ -2,9 +2,12 @@ package com.example.ominous.presentation.main
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.GetApp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,29 +17,57 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ominous.data.database.entities.Note
+import com.example.ominous.domain.model.ExportFormat
+import com.example.ominous.presentation.main.components.ExportDialog
+import com.example.ominous.presentation.main.components.NoteCard
+import com.example.ominous.presentation.main.components.PinnedNoteCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
-    val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val pinnedNotes by viewModel.pinnedNotes.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val selectedNotes by viewModel.selectedNotes.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showSearchBar by remember { mutableStateOf(false) }
     
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Ominous") },
-                actions = {
-                    IconButton(onClick = { /* TODO: Implement search */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
+            if (showSearchBar) {
+                SearchTopBar(
+                    searchQuery = uiState.searchQuery,
+                    onSearchQueryChange = viewModel::updateSearchQuery,
+                    onCloseSearch = { 
+                        showSearchBar = false
+                        viewModel.updateSearchQuery("")
                     }
-                }
-            )
+                )
+            } else {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            text = if (uiState.selectedNotes.isNotEmpty()) {
+                                "${uiState.selectedNotes.size} selected"
+                            } else {
+                                "Ominous"
+                            }
+                        )
+                    },
+                    actions = {
+                        if (uiState.selectedNotes.isNotEmpty()) {
+                            IconButton(onClick = { showExportDialog = true }) {
+                                Icon(Icons.Default.GetApp, contentDescription = "Export")
+                            }
+                        } else {
+                            IconButton(onClick = { showSearchBar = true }) {
+                                Icon(Icons.Default.Search, contentDescription = "Search")
+                            }
+                        }
+                    }
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -53,7 +84,8 @@ fun MainScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (pinnedNotes.isNotEmpty()) {
+            // Pinned notes horizontal scroll
+            if (uiState.pinnedNotes.isNotEmpty()) {
                 item {
                     Text(
                         text = "Pinned Notes",
@@ -61,17 +93,26 @@ fun MainScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
-                items(pinnedNotes) { note ->
-                    NoteCard(
-                        note = note,
-                        isSelected = selectedNotes.contains(note.id),
-                        onToggleSelection = { viewModel.toggleNoteSelection(note.id) },
-                        onTogglePin = { viewModel.togglePinStatus(note.id, !note.isPinned) }
-                    )
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) {
+                        items(uiState.pinnedNotes.size) { index ->
+                            val note = uiState.pinnedNotes[index]
+                            PinnedNoteCard(
+                                note = note,
+                                screenshotCount = uiState.noteScreenshots[note.id]?.size ?: 0,
+                                onNoteClick = { viewModel.selectNote(note) }
+                            )
+                        }
+                    }
                 }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
             
-            if (notes.isNotEmpty()) {
+            // Regular notes
+            if (uiState.filteredNotes.isNotEmpty()) {
                 item {
                     Text(
                         text = "All Notes",
@@ -79,17 +120,20 @@ fun MainScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
-                items(notes.filter { !it.isPinned }) { note ->
+                val unpinnedNotes = uiState.filteredNotes.filter { !it.isPinned }
+                items(unpinnedNotes.size) { index ->
+                    val note = unpinnedNotes[index]
                     NoteCard(
                         note = note,
-                        isSelected = selectedNotes.contains(note.id),
-                        onToggleSelection = { viewModel.toggleNoteSelection(note.id) },
-                        onTogglePin = { viewModel.togglePinStatus(note.id, !note.isPinned) }
+                        screenshots = uiState.noteScreenshots[note.id] ?: emptyList(),
+                        isSelected = uiState.selectedNotes.contains(note.id),
+                        onNoteClick = { viewModel.selectNote(note) },
+                        onNoteLongClick = { viewModel.toggleNoteSelection(note.id) }
                     )
                 }
             }
             
-            if (notes.isEmpty() && pinnedNotes.isEmpty()) {
+            if (uiState.filteredNotes.isEmpty() && uiState.pinnedNotes.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -98,7 +142,11 @@ fun MainScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No notes yet. Create your first note!",
+                            text = if (uiState.searchQuery.isNotBlank()) {
+                                "No notes found for \"${uiState.searchQuery}\""
+                            } else {
+                                "No notes yet. Create your first note!"
+                            },
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
@@ -116,53 +164,45 @@ fun MainScreen(
             }
         )
     }
-}
-
-@Composable
-fun NoteCard(
-    note: Note,
-    isSelected: Boolean,
-    onToggleSelection: () -> Unit,
-    onTogglePin: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+    
+    if (showExportDialog) {
+        ExportDialog(
+            selectedNoteIds = uiState.selectedNotes.toList(),
+            onExport = { format, includeScreenshots ->
+                viewModel.exportNotes(format, includeScreenshots)
+                showExportDialog = false
+            },
+            onDismiss = { showExportDialog = false }
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = note.content,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Created: ${java.text.SimpleDateFormat("MMM dd, yyyy").format(java.util.Date(note.createdAt))}",
-                    style = MaterialTheme.typography.labelSmall
-                )
-                if (note.isPinned) {
-                    Text(
-                        text = "📌",
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-        }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchTopBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onCloseSearch: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = { Text("Search notes...") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onCloseSearch) {
+                Icon(Icons.Default.Clear, contentDescription = "Close search")
+            }
+        }
+    )
+}
+
+
 
 @Composable
 fun CreateNoteDialog(

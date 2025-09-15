@@ -72,7 +72,7 @@ fun ExpandedWidget(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = currentNote.title.ifBlank { "Untitled" },
+                        text = currentNote.content.take(20).ifBlank { "Untitled" },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         maxLines = 1,

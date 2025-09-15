@@ -160,8 +160,8 @@ class ScreenshotCaptureService : Service() {
             val thumbnailPath = generateThumbnail(compressedBitmap)
             
             serviceScope.launch {
-                captureScreenshotUseCase(
-                    noteId = noteId,
+                captureScreenshotUseCase.invoke(
+                    noteId = noteId.toString(),
                     filePath = filePath,
                     thumbnailPath = thumbnailPath
                 )

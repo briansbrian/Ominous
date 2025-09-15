@@ -60,7 +60,7 @@ fun PinnedNoteCard(
             
             // Title
             Text(
-                text = note.title.ifBlank { "Untitled" },
+                text = note.content.take(30).ifBlank { "Untitled" },
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                 maxLines = 2,

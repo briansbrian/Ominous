@@ -32,7 +32,7 @@ fun ScreenshotThumbnail(
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
-        if (screenshot.thumbnailPath.isNotBlank() && File(screenshot.thumbnailPath).exists()) {
+        if (screenshot.thumbnailPath?.isNotBlank() == true && File(screenshot.thumbnailPath).exists()) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(File(screenshot.thumbnailPath))

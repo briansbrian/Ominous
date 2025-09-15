@@ -82,18 +82,8 @@ dependencies {
     // Lifecycle
     implementation(libs.lifecycle.viewmodel.compose)
     
-    // Gson for type converters
-    implementation("com.google.code.gson:gson:2.10.1")
-    
-    // Palette for color extraction
-    implementation("androidx.palette:palette-ktx:1.0.0")
-    implementation(libs.accompanist.permissions)
-    
-    // Coroutines
-    implementation(libs.kotlinx.coroutines.android)
-    
-    // Lifecycle
-    implementation(libs.lifecycle.viewmodel.compose)
+    // Material Icons Extended
+    implementation(libs.material.icons.extended)
     
     // Gson for type converters
     implementation("com.google.code.gson:gson:2.10.1")

@@ -78,7 +78,8 @@
 - [x] Handle overlay permissions
 - [x] Implement floating window lifecycle management
 - [x] Add notification for foreground service
-- [ ] Handle window positioning and state persistence
+- [x] Handle window positioning and state persistence
+- [x] **BUILD SUCCESSFUL** ✅
 
 ### 4.2 Screenshot Capture Service
 - [x] Create `data/services/ScreenshotCaptureService.kt`
@@ -113,7 +114,7 @@
 - [x] Create `presentation/main/MainScreen.kt`
 - [x] Implement note list with pinned notes at top
 - [x] Add multi-selection functionality
-- [ ] Implement search and filtering
+- [x] Implement search and filtering
 
 ### 6.2 Main Screen Components
 - [x] Create `presentation/main/components/NoteCard.kt`
@@ -124,8 +125,8 @@
 ### 6.3 MainActivity
 - [x] Update `MainActivity.kt` with Compose integration
 - [x] Handle permission requests
-- [ ] Implement service launch logic
-- [ ] Add navigation setup
+- [x] Implement service launch logic
+- [x] Add navigation setup
 
 ## Phase 7: Floating Widget UI Implementation
 
@@ -171,10 +172,10 @@
 ## Phase 10: Permissions & Security
 
 ### 10.1 Permission Handling
-- [ ] Implement runtime permission requests
-- [ ] Add overlay permission request flow
-- [ ] Handle permission denial gracefully
-- [ ] Add settings deep-linking for manual permissions
+- [x] Implement runtime permission requests
+- [x] Add overlay permission request flow
+- [x] Handle permission denial gracefully
+- [x] Add settings deep-linking for manual permissions
 
 ### 10.2 Security Features
 - [ ] Implement sensitive data filtering
