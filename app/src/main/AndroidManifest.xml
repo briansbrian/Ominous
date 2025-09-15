@@ -33,6 +33,15 @@
             </intent-filter>
         </activity>
 
+        <!-- MediaProjection Permission Activity -->
+        <activity
+            android:name=".presentation.MediaProjectionPermissionActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:launchMode="singleTask" />
+
         <!-- Services -->
         <service
             android:name=".data.services.FloatingWidgetService"

@@ -165,9 +165,25 @@ class ScreenshotCaptureService : Service() {
                     filePath = filePath,
                     thumbnailPath = thumbnailPath
                 )
+                
+                // Notify that screenshot is completed
+                sendBroadcast(Intent().apply {
+                    action = "com.example.ominous.SCREENSHOT_COMPLETED"
+                    putExtra("noteId", noteId)
+                    putExtra("filePath", filePath)
+                })
+                
+                Log.d(TAG, "Screenshot saved for note $noteId: $filePath")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing image for note", e)
+            
+            // Send error broadcast
+            sendBroadcast(Intent().apply {
+                action = "com.example.ominous.SCREENSHOT_COMPLETED"
+                putExtra("noteId", noteId)
+                putExtra("error", e.message)
+            })
         }
     }
 

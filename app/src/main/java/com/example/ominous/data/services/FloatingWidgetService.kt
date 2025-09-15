@@ -1,8 +1,10 @@
 package com.example.ominous.data.services
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.media.projection.MediaProjectionManager
@@ -11,6 +13,7 @@ import android.os.IBinder
 import android.view.*
 import android.widget.*
 import androidx.core.app.NotificationCompat
+import com.example.ominous.presentation.MediaProjectionPermissionActivity
 import com.example.ominous.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -27,12 +30,16 @@ class FloatingWidgetService : Service() {
     // Note editing state
     private var currentNoteContent = ""
     private var noteEditText: EditText? = null
+    private var currentNoteId: Long = -1L
     
     // Touch handling for dragging
     private var initialX = 0
     private var initialY = 0
     private var initialTouchX = 0f
     private var initialTouchY = 0f
+    
+    // Screenshot handling
+    private var screenshotReceiver: BroadcastReceiver? = null
     
     override fun onBind(intent: Intent?): IBinder? = null
     
@@ -41,6 +48,33 @@ class FloatingWidgetService : Service() {
         createNotificationChannel()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         sharedPreferences = getSharedPreferences("floating_widget_prefs", Context.MODE_PRIVATE)
+        
+        // Register screenshot broadcast receiver
+        screenshotReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    "com.example.ominous.SCREENSHOT_STARTING" -> {
+                        temporaryHideWidget()
+                    }
+                    "com.example.ominous.SCREENSHOT_COMPLETED" -> {
+                        showWidget()
+                        // Show toast notification
+                        val error = intent.getStringExtra("error")
+                        if (error != null) {
+                            android.widget.Toast.makeText(this@FloatingWidgetService, "Screenshot failed: $error", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(this@FloatingWidgetService, "Screenshot saved!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+        
+        val filter = IntentFilter().apply {
+            addAction("com.example.ominous.SCREENSHOT_STARTING")
+            addAction("com.example.ominous.SCREENSHOT_COMPLETED")
+        }
+        registerReceiver(screenshotReceiver, filter)
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -407,6 +441,16 @@ class FloatingWidgetService : Service() {
         }
     }
     
+    private fun temporaryHideWidget() {
+        floatingView?.visibility = View.GONE
+        android.util.Log.d("FloatingWidget", "Widget temporarily hidden for screenshot")
+    }
+    
+    private fun showWidget() {
+        floatingView?.visibility = View.VISIBLE
+        android.util.Log.d("FloatingWidget", "Widget shown after screenshot")
+    }
+    
     private fun saveWidgetState() {
         sharedPreferences.edit().apply {
             putBoolean("is_minimized", isMinimized)
@@ -421,15 +465,26 @@ class FloatingWidgetService : Service() {
     }
     
     private fun handleScreenshotClick() {
-        // Start screenshot capture
-        val mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
-        
-        // TODO: Implement screenshot capture functionality
         android.util.Log.d("FloatingWidget", "Screenshot clicked")
         
-        // For now, just show a toast
-        android.widget.Toast.makeText(this, "Screenshot functionality coming soon!", android.widget.Toast.LENGTH_SHORT).show()
+        // Capture any pending text changes from EditText
+        noteEditText?.text?.toString()?.let { text ->
+            currentNoteContent = text
+        }
+        
+        // Save current note content and get note ID
+        ensureCurrentNoteExists()
+        
+        if (currentNoteId == -1L) {
+            android.widget.Toast.makeText(this, "Error: Could not create note", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        android.util.Log.d("FloatingWidget", "Taking screenshot for note ID: $currentNoteId, content: ${currentNoteContent.take(50)}...")
+        
+        // Start MediaProjection permission activity
+        val intent = MediaProjectionPermissionActivity.createIntent(this, currentNoteId)
+        startActivity(intent)
     }
     
     private fun createNewNote() {
@@ -462,8 +517,30 @@ class FloatingWidgetService : Service() {
         }
     }
     
+    private fun ensureCurrentNoteExists() {
+        if (currentNoteId == -1L) {
+            // Create a new note ID based on timestamp
+            val timestamp = System.currentTimeMillis()
+            currentNoteId = timestamp
+            
+            // Save current note content if any
+            if (currentNoteContent.isNotBlank()) {
+                sharedPreferences.edit().apply {
+                    putString("current_note_content", currentNoteContent)
+                    putLong("current_note_timestamp", timestamp)
+                    putLong("current_note_id", currentNoteId)
+                    apply()
+                }
+            }
+        } else {
+            // Update existing note
+            saveCurrentNote()
+        }
+    }
+    
     private fun loadSavedNote() {
         currentNoteContent = sharedPreferences.getString("current_note_content", "") ?: ""
+        currentNoteId = sharedPreferences.getLong("current_note_id", -1L)
         android.util.Log.d("FloatingWidget", "Loaded note: ${currentNoteContent.take(50)}...")
     }
     
@@ -533,6 +610,16 @@ class FloatingWidgetService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         saveWidgetState()
+        
+        // Unregister screenshot receiver
+        screenshotReceiver?.let { receiver ->
+            try {
+                unregisterReceiver(receiver)
+            } catch (e: IllegalArgumentException) {
+                // Receiver was not registered
+            }
+        }
+        
         hideFloatingWidget()
     }
     
