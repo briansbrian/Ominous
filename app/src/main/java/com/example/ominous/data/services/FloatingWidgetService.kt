@@ -24,6 +24,10 @@ class FloatingWidgetService : Service() {
     private var layoutParams: WindowManager.LayoutParams? = null
     private lateinit var sharedPreferences: SharedPreferences
     
+    // Note editing state
+    private var currentNoteContent = ""
+    private var noteEditText: EditText? = null
+    
     // Touch handling for dragging
     private var initialX = 0
     private var initialY = 0
@@ -85,6 +89,9 @@ class FloatingWidgetService : Service() {
         }
         
         if (floatingView != null) return
+        
+        // Load any saved note content
+        loadSavedNote()
         
         // Restore previous state
         isMinimized = sharedPreferences.getBoolean("is_minimized", false)
@@ -185,13 +192,7 @@ class FloatingWidgetService : Service() {
             setPadding(16, 16, 16, 16)
         }
         
-        // Create toolbar
-        val toolbar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        
-        // Add title and minimize button
+        // Create title bar with minimize button
         val titleBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -202,9 +203,9 @@ class FloatingWidgetService : Service() {
         }
         
         val title = TextView(this).apply {
-            text = "Ominous"
+            text = "Ominous - Quick Note"
             setTextColor(0xFFFFFFFF.toInt())
-            textSize = 16f
+            textSize = 14f
             setPadding(0, 0, 16, 0)
             layoutParams = LinearLayout.LayoutParams(
                 0,
@@ -217,7 +218,8 @@ class FloatingWidgetService : Service() {
             text = "−"
             setTextColor(0xFFFFFFFF.toInt())
             setBackgroundColor(0x44FFFFFF.toInt())
-            setPadding(12, 8, 12, 8)
+            setPadding(8, 4, 8, 4)
+            textSize = 16f
             setOnClickListener { minimizeWidget() }
         }
         
@@ -225,33 +227,81 @@ class FloatingWidgetService : Service() {
         titleBar.addView(minimizeBtn)
         container.addView(titleBar)
         
-        // Add main toolbar with action buttons
-        val screenshotBtn = Button(this).apply {
-            text = "📷 Screenshot"
+        // Add note editing area
+        noteEditText = EditText(this).apply {
+            hint = "Type your note here..."
+            setHintTextColor(0xAAFFFFFF.toInt())
             setTextColor(0xFFFFFFFF.toInt())
             setBackgroundColor(0x44FFFFFF.toInt())
-            setPadding(16, 12, 16, 12)
+            setPadding(12, 12, 12, 12)
+            gravity = Gravity.TOP
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            maxLines = 8
+            setText(currentNoteContent)
+            
+            // Auto-save as user types
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    currentNoteContent = s?.toString() ?: ""
+                    saveCurrentNote()
+                }
+            })
+            
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f // Take up remaining space
+            ).apply {
+                topMargin = 8
+                bottomMargin = 8
+            }
+        }
+        
+        container.addView(noteEditText)
+        
+        // Create action buttons toolbar
+        val toolbar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        
+        val screenshotBtn = Button(this).apply {
+            text = "📷"
+            setTextColor(0xFFFFFFFF.toInt())
+            setBackgroundColor(0x44FFFFFF.toInt())
+            setPadding(12, 8, 12, 8)
             setOnClickListener { handleScreenshotClick() }
         }
         
-        val noteBtn = Button(this).apply {
-            text = "📝 New Note"
+        val newNoteBtn = Button(this).apply {
+            text = "�"
             setTextColor(0xFFFFFFFF.toInt())
             setBackgroundColor(0x44FFFFFF.toInt())
-            setPadding(16, 12, 16, 12)
-            setOnClickListener { handleNoteClick() }
+            setPadding(12, 8, 12, 8)
+            setOnClickListener { createNewNote() }
+        }
+        
+        val saveBtn = Button(this).apply {
+            text = "💾"
+            setTextColor(0xFFFFFFFF.toInt())
+            setBackgroundColor(0x4400FF00.toInt())
+            setPadding(12, 8, 12, 8)
+            setOnClickListener { saveCurrentNote() }
         }
         
         val closeBtn = Button(this).apply {
-            text = "✕ Close"
+            text = "✕"
             setTextColor(0xFFFFFFFF.toInt())
             setBackgroundColor(0x44FF0000.toInt())
-            setPadding(16, 12, 16, 12)
+            setPadding(12, 8, 12, 8)
             setOnClickListener { stopFloatingWidget() }
         }
         
         toolbar.addView(screenshotBtn)
-        toolbar.addView(noteBtn)
+        toolbar.addView(newNoteBtn)
+        toolbar.addView(saveBtn)
         toolbar.addView(closeBtn)
         container.addView(toolbar)
         
@@ -263,19 +313,24 @@ class FloatingWidgetService : Service() {
         // Restore saved position and size
         val savedX = sharedPreferences.getInt("widget_x", 100)
         val savedY = sharedPreferences.getInt("widget_y", 100)
-        val savedWidth = sharedPreferences.getInt("widget_width", WindowManager.LayoutParams.WRAP_CONTENT)
-        val savedHeight = sharedPreferences.getInt("widget_height", WindowManager.LayoutParams.WRAP_CONTENT)
+        val savedWidth = if (isMinimized) 80 else sharedPreferences.getInt("widget_width", 350)
+        val savedHeight = if (isMinimized) 80 else sharedPreferences.getInt("widget_height", 300)
         
         layoutParams = WindowManager.LayoutParams(
-            if (isMinimized) 80 else savedWidth,
-            if (isMinimized) 80 else savedHeight,
+            savedWidth,
+            savedHeight,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            if (isMinimized) {
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            } else {
+                // Allow focus for text input when expanded
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+            },
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -358,8 +413,8 @@ class FloatingWidgetService : Service() {
             putInt("widget_x", layoutParams?.x ?: 100)
             putInt("widget_y", layoutParams?.y ?: 100)
             if (!isMinimized) {
-                putInt("widget_width", layoutParams?.width ?: WindowManager.LayoutParams.WRAP_CONTENT)
-                putInt("widget_height", layoutParams?.height ?: WindowManager.LayoutParams.WRAP_CONTENT)
+                putInt("widget_width", layoutParams?.width ?: 350)
+                putInt("widget_height", layoutParams?.height ?: 300)
             }
             apply()
         }
@@ -372,16 +427,49 @@ class FloatingWidgetService : Service() {
         
         // TODO: Implement screenshot capture functionality
         android.util.Log.d("FloatingWidget", "Screenshot clicked")
+        
+        // For now, just show a toast
+        android.widget.Toast.makeText(this, "Screenshot functionality coming soon!", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun createNewNote() {
+        // Save current note if it has content
+        if (currentNoteContent.isNotBlank()) {
+            saveCurrentNote()
+        }
+        
+        // Clear the text field for new note
+        currentNoteContent = ""
+        noteEditText?.setText("")
+        noteEditText?.hint = "Type your new note here..."
+        
+        android.util.Log.d("FloatingWidget", "Created new note")
+        android.widget.Toast.makeText(this, "New note created", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun saveCurrentNote() {
+        if (currentNoteContent.isNotBlank()) {
+            // Save to SharedPreferences for now (later integrate with database)
+            val timestamp = System.currentTimeMillis()
+            sharedPreferences.edit().apply {
+                putString("current_note_content", currentNoteContent)
+                putLong("current_note_timestamp", timestamp)
+                apply()
+            }
+            
+            android.util.Log.d("FloatingWidget", "Note saved: ${currentNoteContent.take(50)}...")
+            android.widget.Toast.makeText(this, "Note saved", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun loadSavedNote() {
+        currentNoteContent = sharedPreferences.getString("current_note_content", "") ?: ""
+        android.util.Log.d("FloatingWidget", "Loaded note: ${currentNoteContent.take(50)}...")
     }
     
     private fun handleNoteClick() {
-        // Open main app for note creation
-        val intent = Intent(this, com.example.ominous.MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("action", "create_note")
-        }
-        startActivity(intent)
-        android.util.Log.d("FloatingWidget", "Note clicked - opening main app")
+        // This is now replaced by the inline editing, but keep for compatibility
+        android.util.Log.d("FloatingWidget", "Note editing is now inline in the widget")
     }
     
     private fun stopFloatingWidget() {
